@@ -8,6 +8,7 @@ features:
   vital_params: ["HR", "NIDiasABP", "NIMAP", "NISysABP", "RespRate", "Temp", "SpO2"]
   lab_params: ["BUN", "Creatinine", "Glucose", "HCO3", "HCT", "K", "Lactate", "Mg", "Na", "Platelets", "WBC"]
   recent_hours: 24
+  early_hours: 12
 
 model:
   target: "In-hospital_death"
@@ -19,6 +20,11 @@ model:
 
 evaluation:
   output_dir: "outputs/evaluation"
+  threshold_min: 0.1
+  threshold_max: 0.9
+  threshold_step: 0.05
+  # F-beta score beta: >1 weights recall higher than precision
+  fbeta: 2
 
 prediction:
   output_file: "outputs/predictions/predictions.csv"
