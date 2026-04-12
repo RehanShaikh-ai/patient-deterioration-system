@@ -1,6 +1,6 @@
 data:
-  raw_dir: "../../set-a"
-  outcomes_file: "../../Outcomes-a.txt"
+  raw_dir: "../set-a"
+  outcomes_file: "../Outcomes-a.txt"
   features_output: "outputs/features/features.parquet"
 
 features:

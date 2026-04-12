@@ -1,3 +1,4 @@
+import warnings
 import pandas as pd
 import numpy as np
 from src.logger import get_logger
@@ -32,7 +33,9 @@ def _extract_dynamic(group: pd.DataFrame, params: list, recent_hours: int) -> di
             features[f"{param}_std"] = vals.std() if len(vals) > 1 else 0.0
             if len(vals) > 1:
                 times = recent.loc[recent["Parameter"] == param, "hours"].values
-                features[f"{param}_trend"] = float(np.polyfit(times, vals.values, 1)[0])
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", np.RankWarning)
+                    features[f"{param}_trend"] = float(np.polyfit(times, vals.values, 1)[0])
             else:
                 features[f"{param}_trend"] = 0.0
     return features

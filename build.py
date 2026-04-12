@@ -18,9 +18,21 @@ from src.pipeline.evaluation import evaluate_models
 from src.pipeline.prediction import generate_predictions
 
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
 def load_config(path: str = "config.yaml") -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+    with open(os.path.join(PROJECT_ROOT, path)) as f:
+        cfg = yaml.safe_load(f)
+    # Resolve all paths relative to project root
+    cfg["data"]["raw_dir"] = os.path.normpath(os.path.join(PROJECT_ROOT, cfg["data"]["raw_dir"]))
+    cfg["data"]["outcomes_file"] = os.path.normpath(os.path.join(PROJECT_ROOT, cfg["data"]["outcomes_file"]))
+    cfg["data"]["features_output"] = os.path.join(PROJECT_ROOT, cfg["data"]["features_output"])
+    cfg["model"]["output_dir"] = os.path.join(PROJECT_ROOT, cfg["model"]["output_dir"])
+    cfg["evaluation"]["output_dir"] = os.path.join(PROJECT_ROOT, cfg["evaluation"]["output_dir"])
+    cfg["prediction"]["output_file"] = os.path.join(PROJECT_ROOT, cfg["prediction"]["output_file"])
+    cfg["logging"]["log_dir"] = os.path.join(PROJECT_ROOT, cfg["logging"]["log_dir"])
+    return cfg
 
 
 def run_pipeline():
