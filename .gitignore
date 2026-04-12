@@ -9,6 +9,7 @@ outputs/models/
 outputs/features/
 outputs/predictions/
 outputs/evaluation/
+outputs/cache/
 logs/
 *.parquet
 *.joblib

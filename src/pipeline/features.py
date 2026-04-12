@@ -1,6 +1,7 @@
 import warnings
 import pandas as pd
 import numpy as np
+from joblib import Parallel, delayed
 from src.logger import get_logger
 
 
@@ -101,6 +102,15 @@ def _extract_interactions(row: dict) -> dict:
     return interactions
 
 
+def _process_patient(record_id, group, static_params, dynamic_params, recent_hours, early_hours, outcomes, target):
+    row = {"RecordID": record_id}
+    row.update(_extract_static(group, static_params))
+    row.update(_extract_dynamic(group, dynamic_params, recent_hours, early_hours))
+    row.update(_extract_interactions(row))
+    row[target] = outcomes.loc[record_id, target] if record_id in outcomes.index else np.nan
+    return row
+
+
 def build_features(clean_df: pd.DataFrame, outcomes_df: pd.DataFrame, cfg: dict, log_cfg: dict) -> pd.DataFrame:
     logger = get_logger("features", **log_cfg)
     logger.info("Building patient-level features")
@@ -111,20 +121,19 @@ def build_features(clean_df: pd.DataFrame, outcomes_df: pd.DataFrame, cfg: dict,
     recent_hours  = cfg["recent_hours"]
     early_hours   = cfg.get("early_hours", 12)
     target        = "In-hospital_death"
+    dynamic_params = vital_params + lab_params
 
     outcomes = outcomes_df[["RecordID", target]].set_index("RecordID")
-    records = []
+    groups = list(clean_df.groupby("RecordID"))
+    logger.info(f"Processing {len(groups)} patients in parallel")
 
-    grouped = clean_df.groupby("RecordID")
-    logger.info(f"Processing {len(grouped)} patients")
-
-    for record_id, group in grouped:
-        row = {"RecordID": record_id}
-        row.update(_extract_static(group, static_params))
-        row.update(_extract_dynamic(group, vital_params + lab_params, recent_hours, early_hours))
-        row.update(_extract_interactions(row))
-        row[target] = outcomes.loc[record_id, target] if record_id in outcomes.index else np.nan
-        records.append(row)
+    records = Parallel(n_jobs=-1, prefer="threads")(
+        delayed(_process_patient)(
+            record_id, group, static_params, dynamic_params,
+            recent_hours, early_hours, outcomes, target
+        )
+        for record_id, group in groups
+    )
 
     features_df = pd.DataFrame(records)
     features_df = features_df.dropna(subset=[target])
