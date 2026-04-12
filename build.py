@@ -73,7 +73,7 @@ def run_pipeline():
 
     # --- Stage 6: Prediction ---
     logger.info("Stage 6: Prediction")
-    generate_predictions(features_df, cfg["prediction"], cfg["model"], log_cfg)
+    generate_predictions(features_df, best_model, best_thresholds, cfg["prediction"], cfg["model"], log_cfg)
 
     logger.info("=" * 60)
     logger.info(f"Pipeline complete. Best model: {best_model}")

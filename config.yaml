@@ -28,9 +28,9 @@ evaluation:
 
 prediction:
   output_file: "outputs/predictions/predictions.csv"
-  ensemble:
-    logistic_regression_threshold: 0.30
-    xgboost_threshold: 0.20
+  risk_thresholds:
+    low: 0.3
+    medium: 0.6
 
 logging:
   log_dir: "logs"
