@@ -18,13 +18,30 @@ model:
   best_model_metric: "recall"
   output_dir: "outputs/models"
 
+tuning:
+  enabled: true
+  n_iter: 15
+  cv: 5
+  scoring: "recall"
+  param_space:
+    n_estimators: [100, 200, 300]
+    max_depth: [3, 4, 5, 6]
+    learning_rate: [0.01, 0.05, 0.1]
+    subsample: [0.7, 0.8, 1.0]
+    colsample_bytree: [0.7, 0.8, 1.0]
+
 evaluation:
   output_dir: "outputs/evaluation"
   threshold_min: 0.1
   threshold_max: 0.9
   threshold_step: 0.05
-  # F-beta score beta: >1 weights recall higher than precision
   fbeta: 2
+  # Ensemble: XGBoost primary + LR safety override
+  ensemble:
+    xgb_threshold_min: 0.20
+    xgb_threshold_max: 0.30
+    xgb_threshold_step: 0.02
+    lr_threshold: 0.30
 
 prediction:
   output_file: "outputs/predictions/predictions.csv"

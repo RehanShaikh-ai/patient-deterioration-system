@@ -65,7 +65,7 @@ def run_pipeline():
 
     # --- Stage 4: Modeling ---
     logger.info("Stage 4: Modeling")
-    trained = train_models(features_df, cfg["model"], log_cfg)
+    trained = train_models(features_df, cfg["model"], cfg["tuning"], log_cfg)
 
     # --- Stage 5: Evaluation ---
     logger.info("Stage 5: Evaluation")
