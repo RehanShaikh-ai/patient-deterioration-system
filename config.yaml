@@ -1,0 +1,32 @@
+data:
+  raw_dir: "../../set-a"
+  outcomes_file: "../../Outcomes-a.txt"
+  features_output: "outputs/features/features.parquet"
+
+features:
+  static_params: ["Age", "Gender", "Height", "Weight", "ICUType"]
+  vital_params: ["HR", "NIDiasABP", "NIMAP", "NISysABP", "RespRate", "Temp", "SpO2"]
+  lab_params: ["BUN", "Creatinine", "Glucose", "HCO3", "HCT", "K", "Lactate", "Mg", "Na", "Platelets", "WBC"]
+  recent_hours: 24
+
+model:
+  target: "In-hospital_death"
+  test_size: 0.2
+  random_state: 42
+  models_to_train: ["logistic_regression", "random_forest", "xgboost"]
+  best_model_metric: "recall"
+  output_dir: "outputs/models"
+
+evaluation:
+  output_dir: "outputs/evaluation"
+
+prediction:
+  output_file: "outputs/predictions/predictions.csv"
+  risk_thresholds:
+    low: 0.3
+    medium: 0.6
+
+logging:
+  log_dir: "logs"
+  log_file: "pipeline.log"
+  level: "INFO"

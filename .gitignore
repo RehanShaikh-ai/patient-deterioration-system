@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.env
+venv/
+.venv/
+outputs/models/
+outputs/features/
+outputs/predictions/
+outputs/evaluation/
+logs/
+*.parquet
+*.joblib
