@@ -185,7 +185,7 @@
     </main>
 
     <script>
-        const initialPid = {{ initial_pid | tojson | safe if initial_pid is defined and initial_pid is not none else 'null' }};
+        const initialPid = JSON.parse('{{ initial_pid | tojson | safe }}');
         let p = null;
         let chartInstances = [];
 
