@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Clinical Dashboard - Upload Record</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .upload-area {
+            background: white; border: 2px dashed #cbd5e1; border-radius: 16px;
+            padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .upload-area:hover { border-color: var(--accent-blue); background: #f8fafc; }
+        #fileInput { display: none; }
+        
+        .result-card {
+            background: white; border-radius: 16px; border: 1px solid var(--border-color);
+            padding: 24px; box-shadow: var(--shadow-sm); margin-top: 24px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        </div>
+        <a href="/" class="nav-item">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            Hospital
+        </a>
+        <a href="/patient" class="nav-item">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            Patient
+        </a>
+        <a href="/upload" class="nav-item active">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            Upload
+        </a>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">Intelligent Analysis Engine <span style="font-weight:400; font-size:14px; margin-left:12px; color:var(--text-muted);">Realtime CSV Ingestion</span></div>
+        <div class="content-body" style="display:block; max-width:800px; margin: 0 auto; padding-top:40px;">
+            
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <svg fill="none" stroke="#94a3b8" viewBox="0 0 24 24" width="48" height="48" style="margin-bottom:16px;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+                <div style="font-size:18px; font-weight:600; color:var(--text-dark); margin-bottom:8px;" id="upText">Click to upload clinical CSV log</div>
+                <div style="font-size:13px; color:var(--text-muted);">Format Schema: Time, Parameter, Value</div>
+                <input type="file" id="fileInput" accept=".csv" onchange="handleFile(event)">
+            </div>
+
+            <button id="analyzeBtn" style="width:100%; margin-top:20px; padding:16px; background:var(--accent-blue); color:white; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; opacity:0.5; pointer-events:none; transition: all 0.2s;" onclick="uploadAndAnalyze()">Analyze Patient Log</button>
+            <div id="loading" style="text-align:center; display:none; margin-top:20px; color:var(--text-muted);">
+                <div style="margin-bottom:8px; font-weight:500;">Running Feature Extraction Pipeline...</div>
+                <div style="font-size:12px;">Validating timeseries → Computing static trends → Executing ML Ensemble logic</div>
+            </div>
+
+            <!-- Result Box -->
+            <div class="result-card" id="resBox">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 24px;">
+                    <div>
+                        <div style="font-size:14px; color:var(--text-muted); font-weight:600; margin-bottom:8px;">PREDICTION RESULT <span style="margin-left:8px; color:var(--accent-blue);" id="pidBox">ID: --</span></div>
+                        <div id="resRiskBadge" style="display:inline-block; padding:8px 16px; border-radius:8px; font-weight:700; font-size:20px;">--</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">ESTIMATED RISK</div>
+                        <div id="resScore" style="font-size:28px; font-weight:700; color:var(--text-dark);">--%</div>
+                    </div>
+                </div>
+
+                <div style="font-size:14px; color:var(--text-dark); font-weight:600; margin-bottom:16px; padding-top:20px; border-top:1px solid var(--border-color);">Extracted Core Features</div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px;">
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Age Parameter</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fAge">--</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Mean Heart Rate</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fHr">--</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">MAP Dynamic Trend</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fMapT">--</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Max Temperature</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fTemp">--</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Mean Resp. Rate</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fResp">--</div>
+                    </div>
+                    <div style="background:#f8fafc; padding:16px; border-radius:12px; border:1px solid #e2e8f0;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Pipeline Timespan</div>
+                        <div style="font-weight:600; font-size:18px; color:var(--text-dark);" id="fHours">-- hrs</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let selectedFile = null;
+
+        function handleFile(e) {
+            if(e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                document.getElementById('upText').innerText = "Targeting: " + selectedFile.name;
+                const btn = document.getElementById('analyzeBtn');
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+                btn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+            }
+        }
+
+        async function uploadAndAnalyze() {
+            if(!selectedFile) return;
+            
+            document.getElementById('analyzeBtn').style.display = 'none';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resBox').style.display = 'none';
+
+            let formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                let res = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                let data = await res.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').style.display = 'block';
+                document.getElementById('analyzeBtn').innerText = "Analyze Another Log";
+
+                if(!res.ok) {
+                    alert("Analysis Engine Error: " + data.error);
+                    return;
+                }
+
+                document.getElementById('resBox').style.display = 'block';
+
+                const badge = document.getElementById('resRiskBadge');
+                document.getElementById('pidBox').innerText = 'Patient: ' + data.patient_id;
+                badge.innerText = data.risk;
+                if(data.risk === 'HIGH') {
+                    badge.style.background = '#fee2e2'; badge.style.color = '#ef4444';
+                } else if(data.risk === 'MEDIUM') {
+                    badge.style.background = '#fef3c7'; badge.style.color = '#d97706';
+                } else {
+                    badge.style.background = '#d1fae5'; badge.style.color = '#10b981';
+                }
+
+                document.getElementById('resScore').innerText = data.score;
+
+                document.getElementById('fAge').innerText = data.age;
+                document.getElementById('fHr').innerText = data.hr_mean + " bpm";
+                document.getElementById('fMapT').innerText = data.map_trend;
+                document.getElementById('fTemp').innerText = data.temp_max + " °C";
+                document.getElementById('fResp').innerText = data.rr_mean + " /min";
+                document.getElementById('fHours').innerText = data.hours + " hrs (" + data.records +" rec)";
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to reach pipeline backend.");
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

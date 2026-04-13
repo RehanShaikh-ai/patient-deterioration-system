@@ -1,8 +1,12 @@
 import os
+import io
 import json
 import random
 import pandas as pd
-from flask import Flask, jsonify, render_template
+import numpy as np
+import yaml
+import sys
+from flask import Flask, jsonify, render_template, request
 
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PREDS_FILE = os.path.join(BASE_DIR, "outputs", "predictions", "predictions.csv")
@@ -133,6 +137,100 @@ def api_avatar(filename):
     from flask import send_file
     path = os.path.join(r"C:\Users\rehan\.gemini\antigravity\brain\80657cb1-a69b-4a8b-a180-e600ec0b8a06", filename)
     return send_file(path)
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload_file():
+    if request.method == "GET":
+        return render_template("upload.html")
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    try:
+        df = pd.read_csv(io.StringIO(file.stream.read().decode("utf-8")))
+
+        if not all(col in df.columns for col in ["Time", "Parameter", "Value"]):
+            return jsonify({"error": "CSV must contain columns: Time, Parameter, Value"}), 400
+
+        def parse_hours(t):
+            try:
+                hh, mm = str(t).split(":")
+                return int(hh) + int(mm)/60.0
+            except:
+                return 0.0
+
+        df["hours"] = df["Time"].apply(parse_hours)
+        
+        import re
+        match = re.search(r'\d+', file.filename)
+        record_id = int(match.group()) if match else random.randint(100000, 999999)
+        df["RecordID"] = record_id
+
+        with open(os.path.join(BASE_DIR, "config.yaml")) as f:
+            cfg = yaml.safe_load(f)
+
+        static_params = cfg["features"]["static_params"]
+        dynamic_params = cfg["features"]["vital_params"] + cfg["features"]["lab_params"]
+        recent_hours = cfg["features"]["recent_hours"]
+        early_hours = cfg["features"]["early_hours"]
+
+        sys.path.append(BASE_DIR)
+        from src.pipeline.features import _extract_static, _extract_dynamic, _extract_interactions
+
+        row = {"RecordID": record_id}
+        row.update(_extract_static(df, static_params))
+        row.update(_extract_dynamic(df, dynamic_params, recent_hours, early_hours))
+        row.update(_extract_interactions(row))
+
+        model_dir = os.path.join(BASE_DIR, "outputs", "models")
+        with open(os.path.join(model_dir, "xgboost_meta.json")) as meta_f:
+            f_cols = json.load(meta_f)["feature_cols"]
+
+        X = np.array([[row.get(c, np.nan) for c in f_cols]])
+
+        import joblib
+        xgb_model = joblib.load(os.path.join(model_dir, "xgboost.joblib"))
+        lr_model  = joblib.load(os.path.join(model_dir, "logistic_regression.joblib"))
+
+        xgb_prob = float(xgb_model.predict_proba(X)[:, 1][0])
+        lr_prob  = float(lr_model.predict_proba(X)[:, 1][0])
+        score = max(xgb_prob, lr_prob)
+
+        xgb_t = cfg["evaluation"]["ensemble"]["xgb_threshold"]
+        lr_t  = cfg["evaluation"]["ensemble"]["lr_threshold"]
+
+        if score >= 0.95:
+            display_score = "95%+"
+        else:
+            display_score = f"{int(score * 100)}%"
+
+        risk_level = "HIGH" if (xgb_prob >= xgb_t or lr_prob >= lr_t) else "LOW"
+        if not risk_level == "HIGH" and (xgb_prob >= xgb_t-0.1 or lr_prob >= lr_t-0.15):
+             risk_level = "MEDIUM"
+        
+        return jsonify({
+            "status": "success",
+            "patient_id": record_id,
+            "risk": risk_level,
+            "score": display_score,
+            "raw_score": score,
+            "records": len(df),
+            "hours": round(df["hours"].max(), 1) if not df.empty else 0,
+            "hr_mean": round(row.get("HR_mean", 0) if pd.notna(row.get("HR_mean")) else 0, 1),
+            "map_trend": round(row.get("NIMAP_trend", 0) if pd.notna(row.get("NIMAP_trend")) else 0, 3),
+            "temp_max": round(row.get("Temp_max", 0) if pd.notna(row.get("Temp_max")) else 0, 1),
+            "rr_mean": round(row.get("RespRate_mean", 0) if pd.notna(row.get("RespRate_mean")) else 0, 1),
+            "age": row.get("Age", "Unknown") if pd.notna(row.get("Age")) else "Unknown"
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
